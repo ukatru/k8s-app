@@ -1,0 +1,21 @@
+{{- range .Values.storage }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-%s" (include "k8s-app.fullname" $) .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "k8s-app.labels" $ | nindent 4 }}
+  annotations:
+    {{- include "k8s-app.annotations" $ | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .accessMode | default "ReadWriteMany" }}
+  resources:
+    requests:
+      storage: {{ .size }}
+  {{- if eq .type "efs" }}
+  storageClassName: efs-sc
+  {{- end }}
+{{- end }}

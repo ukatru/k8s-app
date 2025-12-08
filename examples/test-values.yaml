@@ -1,0 +1,26 @@
+appSpec:
+  name: "java-service"
+  version: "2.0.0"
+  snowAppId: "SNOW789012"
+  env: "production"
+  language: "java"  # Automatically configures Java-specific resources and probes
+  image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/java-service:2.0.0"
+  branch: "main"
+  repoUrl: "https://gitlab.com/myorg/java-service.git"
+
+clusterConfig:
+  AWSSecurityGroupId: test
+  certArn: test
+  clusterSubDomain: dp-np.ukatru.internal
+  albSubnet: test
+
+externalSecrets:
+  files:
+    - secretName: snowflake-private-key
+      key: private-key.pem
+      path: private-key.pem
+
+ports:
+  - name: http
+    containerPort: 8080
+    appProtocol: http

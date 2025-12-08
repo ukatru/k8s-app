@@ -1,0 +1,16 @@
+apiVersion: v2
+name: k8s-app
+description: A Helm chart for deploying applications on Kubernetes (converted from Timoni CUE module)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - application
+  - deployment
+  - eks
+  - platform
+maintainers:
+  - name: Platform Team
+home: https://github.com/ukatru/k8s-app
+sources:
+  - https://github.com/ukatru/k8s-app

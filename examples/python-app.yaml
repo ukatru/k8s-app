@@ -1,0 +1,81 @@
+# Example values for a Python application
+appSpec:
+  name: "python-canary"
+  version: "1.0.0"
+  snowAppId: "SNOW123456"
+  env: "production"
+  language: "python"
+  image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/python-canary:latest"
+  branch: "main"
+  repoUrl: "https://gitlab.com/myorg/python-canary.git"
+
+observability:
+  team: "platform"
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  tracing:
+    enabled: true
+    sampleRate: "1.0"
+  logging:
+    enabled: true
+    format: "json"
+
+resources:
+  plan: "medium"
+  autoscaling:
+    enabled: true
+    minInstances: 3
+    maxInstances: 20
+
+lifecycle:
+  livenessProbe:
+    probeType: "http"
+    path: "/health"
+    port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 3
+  
+  readinessProbe:
+    probeType: "http"
+    path: "/ready"
+    port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    failureThreshold: 3
+
+env:
+  PORT: "8080"
+  LOG_LEVEL: "info"
+  PYTHONUNBUFFERED: "1"
+
+podIdentity:
+  enabled: true
+  aws:
+    assumedRoles:
+      - "arn:aws:iam::123456789012:role/python-canary-role"
+
+externalConfigs:
+  autodiscovery:
+    enabled: true
+
+externalSecrets:
+  autodiscovery:
+    enabled: true
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: python-canary.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: python-canary-tls
+      hosts:
+        - python-canary.example.com

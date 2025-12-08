@@ -1,0 +1,83 @@
+# Example: Java app with custom probe and resource overrides
+# This shows how to override specific settings while keeping language defaults
+
+appSpec:
+  name: "java-service-custom"
+  version: "2.0.0"
+  snowAppId: "SNOW789012"
+  env: "production"
+  language: "java"  # Still uses Java language
+  image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/java-service:2.0.0"
+  branch: "main"
+  repoUrl: "https://gitlab.com/myorg/java-service.git"
+
+observability:
+  team: "backend"
+  metrics:
+    enabled: true
+    port: 9090
+  tracing:
+    enabled: true
+    sampleRate: "0.5"
+
+# Option 1: Use custom plan with exact resource values
+resources:
+  plan: "custom"  # Override t-shirt sizing
+  instances: 3
+  
+  # Specify exact resources instead of using predefined plans
+  memory:
+    minMB: 3072    # 3GB request
+    maxMB: 6144    # 6GB limit
+  cpu:
+    minMilliCores: 1500  # 1.5 CPU request
+    maxMilliCores: 3000  # 3 CPU limit
+  
+  autoscaling:
+    enabled: true
+    minInstances: 3
+    maxInstances: 20
+
+# Option 2: Override specific probe settings
+# Keep Java defaults but customize what you need
+lifecycle:
+  livenessProbe:
+    # Override just the path and delay, keep other Java defaults
+    path: /actuator/health/custom-liveness
+    initialDelaySeconds: 90  # Longer startup for this app
+    # port, timeoutSeconds, periodSeconds, etc. use Java defaults
+  
+  readinessProbe:
+    # Override just the failure threshold
+    failureThreshold: 5  # More tolerant
+    # path, port, delays, etc. use Java defaults
+  
+  startupProbe:
+    # Override startup timeout for slow-starting app
+    failureThreshold: 120  # 20 minutes (120 * 10s period)
+    # Other settings use Java defaults
+
+env:
+  SERVER_PORT: "8080"
+  SPRING_PROFILES_ACTIVE: "prod"
+  # Override Java JAVA_OPTS with custom heap size
+  JAVA_OPTS: "-Xmx5g -Xms3g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+podIdentity:
+  enabled: true
+  aws:
+    assumedRoles:
+      - "arn:aws:iam::123456789012:role/java-service-role"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: java-service.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: java-service-tls
+      hosts:
+        - java-service.example.com

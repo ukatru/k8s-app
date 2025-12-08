@@ -1,0 +1,61 @@
+🎉 Successfully deployed {{ .Values.appSpec.name }}!
+
+Application Details:
+  Name:        {{ .Values.appSpec.name }}
+  Version:     {{ .Values.appSpec.version }}
+  Environment: {{ .Values.appSpec.env }}
+  Language:    {{ .Values.appSpec.language }}
+  Image:       {{ .Values.appSpec.image }}
+
+Deployment:
+  Namespace:   {{ .Release.Namespace }}
+  Release:     {{ .Release.Name }}
+{{- if not .Values.resources.autoscaling.enabled }}
+  Replicas:    {{ .Values.resources.instances | default 1 }}
+{{- else }}
+  Auto-scaling: {{ .Values.resources.autoscaling.minInstances }} - {{ .Values.resources.autoscaling.maxInstances }} replicas
+{{- end }}
+
+{{- if .Values.podIdentity.enabled }}
+
+Pod Identity (IRSA):
+  Service Account: {{ include "k8s-app.serviceAccountName" . }}
+{{- if .Values.podIdentity.aws }}
+{{- if .Values.podIdentity.aws.assumedRoles }}
+  IAM Role:        {{ index .Values.podIdentity.aws.assumedRoles 0 }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+Ingress:
+{{- range .Values.ingress.hosts }}
+  URL: https://{{ .host }}
+{{- end }}
+{{- end }}
+
+Get the application status:
+  kubectl get deployment {{ include "k8s-app.fullname" . }} -n {{ .Release.Namespace }}
+
+View pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "k8s-app.name" . }}
+
+View logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "k8s-app.name" . }} -f
+
+{{- if .Values.ingress.enabled }}
+
+Access the application:
+{{- range .Values.ingress.hosts }}
+  curl https://{{ .host }}
+{{- end }}
+{{- else }}
+
+Port-forward to access the application:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "k8s-app.fullname" . }} 8080:{{ .Values.service.port | default 80 }}
+  curl http://localhost:8080
+{{- end }}
+
+For more information, visit:
+  https://github.com/ukatru/k8s-app

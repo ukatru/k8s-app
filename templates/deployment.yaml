@@ -1,0 +1,188 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-app.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-app.labels" . | nindent 4 }}
+    {{- include "k8s-app.observabilityLabels" . | nindent 4 }}
+  annotations:
+    {{- include "k8s-app.annotations" . | nindent 4 }}
+    kubernetes.io/change-cause: "Release version {{ .Values.appSpec.version }}"
+spec:
+  {{- if not .Values.resources.autoscaling.enabled }}
+  replicas: {{ .Values.resources.instances | default 1 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "k8s-app.selectorLabels" . | nindent 6 }}
+  {{- if eq .Values.deploymentStrategy "Recreate" }}
+  strategy:
+    type: Recreate
+  {{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- include "k8s-app.rollingUpdate" . | nindent 6 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-app.selectorLabels" . | nindent 8 }}
+        {{- include "k8s-app.observabilityLabels" . | nindent 8 }}
+        platform.k8s.ukatru.cloud/app-container: backend
+      annotations:
+        {{- if .Values.appSpec.imageName }}
+        platform.k8s.ukatru.com/image-name: {{ .Values.appSpec.imageName }}
+        {{- end }}
+        {{- if .Values.appSpec.imageTag }}
+        platform.k8s.ukatru.com/image-tag: {{ .Values.appSpec.imageTag }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "k8s-app.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: backend
+        image: {{ .Values.appSpec.image | quote }}
+        imagePullPolicy: Always
+        {{- if .Values.command }}
+        command:
+          {{- toYaml .Values.command | nindent 10 }}
+        {{- end }}
+        {{- if .Values.args }}
+        args:
+          {{- toYaml .Values.args | nindent 10 }}
+        {{- end }}
+        ports:
+        {{- include "k8s-app.containerPorts" . | nindent 8 }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Values.appSpec.name }}-config
+            optional: true
+        - secretRef:
+            name: {{ .Values.appSpec.name }}-secret
+            optional: true
+        env:
+        {{- include "k8s-app.observabilityEnv" . | nindent 8 }}
+        {{- include "k8s-app.languageEnv" . | nindent 8 }}
+        {{- range $key, $value := .Values.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- if .Values.appSpec.language }}
+        livenessProbe:
+          {{- include "k8s-app.renderLivenessProbe" . | nindent 10 }}
+        readinessProbe:
+          {{- include "k8s-app.renderReadinessProbe" . | nindent 10 }}
+        {{- if .Values.lifecycle.startupProbe }}
+        startupProbe:
+          {{- include "k8s-app.renderStartupProbe" . | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        resources:
+          {{- include "k8s-app.getResourcePlan" . | nindent 10 }}
+        volumeMounts:
+        {{- if or .Values.externalConfigs.autodiscovery.enabled .Values.externalConfigs.files }}
+        - name: configs
+          mountPath: /configs
+          readOnly: true
+        {{- end }}
+        {{- if or .Values.externalSecrets.autodiscovery.enabled .Values.externalSecrets.files }}
+        - name: secrets
+          mountPath: /secrets
+          readOnly: true
+        {{- end }}
+        {{- range .Values.storage }}
+        - name: {{ .name }}
+          mountPath: {{ .mount.path }}
+          readOnly: {{ .mount.readOnly | default false }}
+        {{- end }}
+      volumes:
+      {{- if or .Values.externalConfigs.autodiscovery.enabled .Values.externalConfigs.files }}
+      - name: configs
+        projected:
+          sources:
+          {{- if .Values.externalConfigs.autodiscovery.enabled }}
+          {{- $appName := .Values.appSpec.name }}
+          {{- $env := .Values.appSpec.env }}
+          {{- $suffix := .Values.externalConfigs.autodiscovery.suffix }}
+          - configMap:
+              name: {{ printf "common-config%s" $suffix }}
+              optional: true
+          - configMap:
+              name: {{ printf "common-config-%s%s" $env $suffix }}
+              optional: true
+          - configMap:
+              name: {{ printf "%s-config%s" $appName $suffix }}
+              optional: true
+          - configMap:
+              name: {{ printf "%s-config-%s%s" $appName $env $suffix }}
+              optional: true
+          {{- end }}
+          {{- range .Values.externalConfigs.files }}
+          - configMap:
+              name: {{ .configMapName }}
+              items:
+              - key: {{ .key }}
+                path: {{ .path }}
+              optional: true
+          {{- end }}
+      {{- end }}
+      {{- if or .Values.externalSecrets.autodiscovery.enabled .Values.externalSecrets.files }}
+      - name: secrets
+        projected:
+          sources:
+          {{- if .Values.externalSecrets.autodiscovery.enabled }}
+          {{- $appName := .Values.appSpec.name }}
+          {{- $env := .Values.appSpec.env }}
+          {{- $suffix := .Values.externalSecrets.autodiscovery.suffix }}
+          - secret:
+              name: {{ printf "common-secret%s" $suffix }}
+              optional: true
+          - secret:
+              name: {{ printf "common-secret-%s%s" $env $suffix }}
+              optional: true
+          - secret:
+              name: {{ printf "%s-secret%s" $appName $suffix }}
+              optional: true
+          - secret:
+              name: {{ printf "%s-secret-%s%s" $appName $env $suffix }}
+              optional: true
+          {{- end }}
+          {{- range .Values.externalSecrets.files }}
+          - secret:
+              name: {{ .secretName }}
+              items:
+              - key: {{ .key }}
+                path: {{ .path }}
+              optional: true
+          {{- end }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            {{- include "k8s-app.selectorLabels" . | nindent 12 }}
+        matchLabelKeys:
+        - pod-template-hash
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            {{- include "k8s-app.selectorLabels" . | nindent 12 }}
+        matchLabelKeys:
+        - pod-template-hash

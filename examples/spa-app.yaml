@@ -1,0 +1,75 @@
+# Example values for a Single Page Application (SPA)
+# SPAs automatically get:
+# - Minimal resource requirements (static content serving)
+# - TCP probes on port 8080 (no health endpoints needed)
+# - Fast startup times
+
+appSpec:
+  name: "react-dashboard"
+  version: "1.5.0"
+  snowAppId: "SNOW987654"
+  env: "production"
+  language: "spa"  # Automatically configures SPA-specific resources and TCP probes
+  image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/react-dashboard:1.5.0"
+  branch: "main"
+  repoUrl: "https://gitlab.com/myorg/react-dashboard.git"
+
+observability:
+  team: "frontend"
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  tracing:
+    enabled: false  # SPAs typically don't need server-side tracing
+  logging:
+    enabled: true
+    format: "json"
+
+resources:
+  plan: "small"  # SPA small: 100m-200m CPU, 128Mi-256Mi RAM (very lightweight)
+  autoscaling:
+    enabled: true
+    minInstances: 2
+    maxInstances: 10
+
+# Probes use TCP checks by default (no health endpoints needed)
+# Port 8080 is automatically configured
+lifecycle:
+  livenessProbe: {}   # Uses TCP port 8080 by default
+  readinessProbe: {}  # Uses TCP port 8080 by default
+  startupProbe: {}    # Optional, uses TCP port 8080
+
+env:
+  PORT: "8080"
+  NODE_ENV: "production"
+
+# SPAs typically don't need Pod Identity unless accessing AWS services
+podIdentity:
+  enabled: false
+
+# Static content serving
+ports:
+  - name: http
+    containerPort: 8080
+    appProtocol: http
+    routable: true
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # SPA-specific: serve index.html for all routes
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      try_files $uri $uri/ /index.html;
+  hosts:
+    - host: dashboard.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: react-dashboard-tls
+      hosts:
+        - dashboard.example.com

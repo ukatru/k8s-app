@@ -1,0 +1,335 @@
+# Default values for k8s-app
+# This is a YAML-formatted file converted from Timoni CUE module
+
+# Application specification
+appSpec:
+  name: ""  # REQUIRED: Name of the application
+  version: "1.0.0"  # REQUIRED: Version of the application
+  snowAppId: ""  # REQUIRED: ServiceNow Application ID
+  env: "dev"  # REQUIRED: Environment (dev, staging, prod)
+  branch: ""  # Git branch
+  language: "python"  # Language: python, java, dotnet, spa
+  image: ""  # REQUIRED: Container image
+  imageName: ""  # Optional: Image name for troubleshooting
+  imageTag: ""  # Optional: Image tag for troubleshooting
+  repoUrl: ""  # Optional: Git repository URL
+  pipelineId: ""  # Optional: CI/CD pipeline ID
+  pipelineUrl: ""  # Optional: CI/CD pipeline URL
+
+# Cluster configuration
+clusterConfig:
+  clusterName: ""
+  securityGroupId: ""
+  certArn: ""
+  clusterSubDomain: ""
+  platformSnowAppId: ""
+
+# Resources configuration
+# Resource plans are automatically adjusted based on language
+#
+# Python plans (default):
+#   small:  250m-500m CPU, 256Mi-512Mi RAM
+#   medium: 500m-1000m CPU, 512Mi-1Gi RAM
+#   large:  1000m-2000m CPU, 1Gi-2Gi RAM
+#   huge:   2000m-4000m CPU, 2Gi-4Gi RAM
+#
+# Java plans (higher memory for JVM):
+#   small:  500m-1000m CPU, 512Mi-1Gi RAM
+#   medium: 1000m-2000m CPU, 1Gi-2Gi RAM
+#   large:  2000m-4000m CPU, 2Gi-4Gi RAM
+#   huge:   4000m-8000m CPU, 4Gi-8Gi RAM
+#
+# .NET plans:
+#   small:  250m-500m CPU, 384Mi-768Mi RAM
+#   medium: 500m-1000m CPU, 768Mi-1536Mi RAM
+#   large:  1000m-2000m CPU, 1536Mi-3Gi RAM
+#   huge:   2000m-4000m CPU, 3Gi-6Gi RAM
+#
+# SPA (Single Page Application) plans (minimal resources):
+#   small:  100m-200m CPU, 128Mi-256Mi RAM
+#   medium: 200m-500m CPU, 256Mi-512Mi RAM
+#   large:  500m-1000m CPU, 512Mi-1Gi RAM
+#   huge:   1000m-2000m CPU, 1Gi-2Gi RAM
+#
+resources:
+  plan: "small"  # Plan: small, medium, large, huge, custom
+  instances: 1  # Number of replicas (if not using autoscaling)
+  
+  # Custom resource quotas (only if plan: custom)
+  # Overrides language-specific defaults
+  memory:
+    minMB: 256
+    maxMB: 512
+  cpu:
+    minMilliCores: 250
+    maxMilliCores: 500
+  
+  # Autoscaling configuration
+  autoscaling:
+    enabled: false
+    minInstances: 1
+    maxInstances: 10
+    pollingInterval: 30
+    cooldownPeriod: 300
+    triggers: []
+    # Example trigger:
+    # - type: cpu
+    #   metricType: Utilization
+    #   metadata:
+    #     value: "80"
+
+# Observability configuration
+observability:
+  team: ""  # Team responsible for this application
+  # Metrics and tracing (works with Grafana, Prometheus, Tempo, etc.)
+  metrics:
+    enabled: true
+    port: 9090  # Metrics endpoint port
+    path: /metrics
+  tracing:
+    enabled: true
+    sampleRate: "1.0"  # 0.0 to 1.0
+  logging:
+    enabled: true
+    format: "json"  # json or text
+
+# Application lifecycle probes
+# Probes are automatically configured based on language with sensible defaults
+# You can override any probe setting here
+#
+# Language-specific defaults:
+# Python:
+#   - liveness: /health (30s delay)
+#   - readiness: /ready (5s delay)
+#   - startup: /startup (30 failures = 5min timeout)
+# Java:
+#   - liveness: /actuator/health/liveness (60s delay)
+#   - readiness: /actuator/health/readiness (30s delay)
+#   - startup: /actuator/health/liveness (60 failures = 10min timeout)
+# .NET:
+#   - liveness: /health/live (30s delay)
+#   - readiness: /health/ready (10s delay)
+#   - startup: /health/startup (30 failures = 5min timeout)
+# SPA (Single Page Application):
+#   - liveness: TCP port 8080 (10s delay)
+#   - readiness: TCP port 8080 (5s delay)
+#   - startup: TCP port 8080 (12 failures = 1min timeout)
+#
+lifecycle:
+  # Override liveness probe (optional - uses language defaults if not specified)
+  livenessProbe: {}
+    # probeType: "http"  # http, tcp, exec, grpc
+    # path: "/health"
+    # port: 8080
+    # initialDelaySeconds: 30
+    # timeoutSeconds: 1
+    # periodSeconds: 10
+    # successThreshold: 1
+    # failureThreshold: 3
+  
+  # Override readiness probe (optional - uses language defaults if not specified)
+  readinessProbe: {}
+    # probeType: "http"
+    # path: "/ready"
+    # port: 8080
+    # initialDelaySeconds: 5
+    # timeoutSeconds: 1
+    # periodSeconds: 5
+    # successThreshold: 1
+    # failureThreshold: 3
+  
+  # Override startup probe (optional - disabled by default)
+  startupProbe: {}
+    # probeType: "http"
+    # path: "/startup"
+    # port: 8080
+    # initialDelaySeconds: 0
+    # timeoutSeconds: 1
+    # periodSeconds: 10
+    # successThreshold: 1
+    # failureThreshold: 30
+
+# External configurations
+externalConfigs:
+  autodiscovery:
+    enabled: true
+    suffix: ""
+  files: []
+  # Example:
+  # - configMapName: my-config
+  #   key: config.yaml
+  #   path: /configs/config.yaml
+
+# External secrets
+externalSecrets:
+  autodiscovery:
+    enabled: true
+    suffix: ""
+  files: []
+  # Example:
+  # - secretName: my-secret
+  #   key: secret.yaml
+  #   path: /secrets/secret.yaml
+  envVars: []
+  # Example:
+  # - secretObjectName: my-secret
+  #   mappings:
+  #     DB_PASSWORD: password
+  #     API_KEY: api_key
+
+# Environment variables
+env: {}
+# Example:
+# PORT: "8080"
+# LOG_LEVEL: "info"
+# ENVIRONMENT: "production"
+
+# Security configuration
+security:
+  encryptOracleConnections:
+    enabled: true
+
+# Port definitions
+ports: []
+# Example:
+# - name: http
+#   containerPort: 8080
+#   appProtocol: http
+#   routable: true
+# - name: grpc
+#   containerPort: 9090
+#   appProtocol: grpc
+#   routable: false
+
+# Pod Identity (IRSA for AWS)
+podIdentity:
+  enabled: false
+  serviceAccount: ""  # Defaults to <app-name>-<env>
+  aws:
+    assumedRoles: []
+    # Example:
+    # - arn:aws:iam::123456789012:role/my-app-role
+
+# GitLab JWT token
+gitlabJwt: ""
+
+# Additional labels and annotations
+labels: {}
+annotations: {}
+
+# Pipeline labels and annotations (set by CI/CD)
+pipelineLabels: {}
+pipelineAnnotations: {}
+
+# Function as a Service (FaaS) configuration
+faas:
+  enabled: false
+  authToken: ""
+  payload:
+    enabled: false
+    type: "ARG"  # ARG or ENV
+
+# Container command and args override
+command: []
+args: []
+
+# Additional DNS names
+additionalDnsNames: []
+# Example:
+# - myapp.example.com
+# - api.example.com
+
+# Deployment strategy
+deploymentStrategy: "Rolling"  # Rolling, Recreate, BlueGreen
+
+# Rolling update configuration (optional override)
+# If not specified, defaults based on environment:
+#   - prod: maxSurge: 100%, maxUnavailable: 0 (fast rollout, no downtime)
+#   - other envs: maxSurge: 1, maxUnavailable: 0 (gradual rollout, no downtime)
+# rollingUpdate:
+#   maxSurge: 100%  # or integer like 1, 2, 3
+#   maxUnavailable: 0
+
+# Service discovery
+discovery:
+  headless: false
+
+# Storage configuration
+storage: []
+# Example:
+# - name: data
+#   type: efs
+#   accessMode: ReadWriteMany
+#   size: 10Gi
+#   mount:
+#     path: /data
+#     readOnly: false
+
+# Platform ecosystem
+platformEcosystem: "EKS"
+
+# Routing configuration
+routing:
+  routes: []
+  # Example:
+  # - matchers:
+  #     - prefix: /api
+  #       headers:
+  #         - name: X-Custom-Header
+  #           value: custom-value
+  #           regex: false
+  #   portName: http
+  #   rewrite:
+  #     type: exact
+  #     match: /api
+  #     substitute: /v1/api
+  #   requestHeaders:
+  #     removeHeaders: []
+  #     addHeaders:
+  #       - name: X-Custom-Header
+  #         value: custom-value
+  #         overwrite: true
+  #   responseHeaders:
+  #     removeHeaders: []
+  #     addHeaders: []
+  
+  stickySession:
+    enabled: false
+    sessionTTLSeconds: 30
+    addCookie: false
+    cookieName: "JSESSIONID"
+  
+  requestHeaders:
+    removeHeaders: []
+    addHeaders: []
+  
+  responseHeaders:
+    removeHeaders: []
+    addHeaders: []
+
+# Connection pool settings
+connectionPool:
+  maxConnections: 1024
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts: []
+  # Example:
+  # - host: myapp.example.com
+  #   paths:
+  #     - path: /
+  #       pathType: Prefix
+  tls: []
+  # Example:
+  # - secretName: myapp-tls
+  #   hosts:
+  #     - myapp.example.com

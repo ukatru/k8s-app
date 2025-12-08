@@ -1,0 +1,17 @@
+{{- if not .Values.faas.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "k8s-app.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-app.labels" . | nindent 4 }}
+  annotations:
+    {{- include "k8s-app.annotations" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type | default "ClusterIP" }}
+  ports:
+  {{- include "k8s-app.servicePorts" . | nindent 2 }}
+  selector:
+    {{- include "k8s-app.selectorLabels" . | nindent 4 }}
+{{- end }}

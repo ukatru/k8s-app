@@ -1,0 +1,71 @@
+# Example values for a Java application
+# Java apps automatically get:
+# - Higher memory limits (JVM needs more RAM)
+# - Spring Boot Actuator health endpoints
+# - Longer startup times (60s initial delay)
+
+appSpec:
+  name: "java-service"
+  version: "2.0.0"
+  snowAppId: "SNOW789012"
+  env: "production"
+  language: "java"  # Automatically configures Java-specific resources and probes
+  image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/java-service:2.0.0"
+  branch: "main"
+  repoUrl: "https://gitlab.com/myorg/java-service.git"
+
+observability:
+  team: "backend"
+  metrics:
+    enabled: true
+    port: 9090
+    path: /actuator/prometheus  # Spring Boot Actuator Prometheus endpoint
+  tracing:
+    enabled: true
+    sampleRate: "0.5"
+  logging:
+    enabled: true
+    format: "json"
+
+resources:
+  plan: "large"  # Java large: 2000m-4000m CPU, 2Gi-4Gi RAM
+  autoscaling:
+    enabled: true
+    minInstances: 3
+    maxInstances: 20
+
+# Probes use Spring Boot Actuator endpoints by default
+# /actuator/health/liveness and /actuator/health/readiness
+lifecycle:
+  # Override if your actuator is on a different port
+  livenessProbe:
+    port: 8080  # Uses /actuator/health/liveness by default
+  readinessProbe:
+    port: 8080  # Uses /actuator/health/readiness by default
+
+env:
+  SERVER_PORT: "8080"
+  SPRING_PROFILES_ACTIVE: "prod"
+  JAVA_OPTS: "-Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+podIdentity:
+  enabled: true
+  aws:
+    assumedRoles:
+      - "arn:aws:iam::123456789012:role/java-service-role"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: java-service.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: java-service-tls
+      hosts:
+        - java-service.example.com

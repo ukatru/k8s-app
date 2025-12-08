@@ -1,0 +1,71 @@
+# Example values for a .NET application
+# .NET apps automatically get:
+# - Optimized memory settings
+# - ASP.NET Core health endpoints
+# - .NET-specific environment variables
+
+appSpec:
+  name: "dotnet-api"
+  version: "3.1.0"
+  snowAppId: "SNOW456789"
+  env: "production"
+  language: "dotnet"  # Automatically configures .NET-specific resources and probes
+  image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/dotnet-api:3.1.0"
+  branch: "main"
+  repoUrl: "https://gitlab.com/myorg/dotnet-api.git"
+
+observability:
+  team: "platform"
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  tracing:
+    enabled: true
+    sampleRate: "1.0"
+  logging:
+    enabled: true
+    format: "json"
+
+resources:
+  plan: "medium"  # .NET medium: 500m-1000m CPU, 768Mi-1536Mi RAM
+  autoscaling:
+    enabled: true
+    minInstances: 2
+    maxInstances: 15
+
+# Probes use ASP.NET Core health check endpoints by default
+# /health/live, /health/ready, /health/startup
+lifecycle:
+  livenessProbe:
+    port: 8080  # Uses /health/live by default
+  readinessProbe:
+    port: 8080  # Uses /health/ready by default
+  startupProbe:
+    port: 8080  # Uses /health/startup by default
+
+env:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:8080"
+  DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+
+podIdentity:
+  enabled: true
+  aws:
+    assumedRoles:
+      - "arn:aws:iam::123456789012:role/dotnet-api-role"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: dotnet-api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: dotnet-api-tls
+      hosts:
+        - dotnet-api-tls.example.com
