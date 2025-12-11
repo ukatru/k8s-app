@@ -34,8 +34,8 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/name: {{ .Release.Name }}
 app.kubernetes.io/part-of: {{ .Values.appSpec.appId }}
 app.kubernetes.io/version: {{ .Values.appSpec.version }}
-platform.k8s.g1001.cloud/env: {{ .Values.appSpec.env }}
-platform.k8s.g1001.cloud/module-version: {{ .Chart.Version }}
+platform.k8s.cloud/env: {{ .Values.appSpec.env }}
+platform.k8s.cloud/module-version: {{ .Chart.Version }}
 {{- with .Values.labels }}
 {{ toYaml . }}
 {{- end }}
@@ -143,13 +143,13 @@ Common annotations
 */}}
 {{- define "k8s-app.annotations" -}}
 {{- if .Values.appSpec.repoUrl -}}
-plaform.k8s.g1001.cloud/repo: {{ .Values.appSpec.repoUrl }}
+plaform.k8s.cloud/repo: {{ .Values.appSpec.repoUrl }}
 {{ end -}}
 {{- if .Values.appSpec.pipelineId -}}
-plaform.k8s.g1001.cloud/pipelineId: {{ .Values.appSpec.pipelineId }}
+plaform.k8s.cloud/pipelineId: {{ .Values.appSpec.pipelineId }}
 {{ end -}}
 {{- if .Values.appSpec.pipelineUrl -}}
-plaform.k8s.g1001.cloud/pipelineUrl: {{ .Values.appSpec.pipelineUrl }}
+plaform.k8s.cloud/pipelineUrl: {{ .Values.appSpec.pipelineUrl }}
 {{ end -}}
 {{- with .Values.annotations -}}
 {{ toYaml . }}
